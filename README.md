@@ -1,5 +1,9 @@
 # cfstructs - cache friendly data structures
 
+A collection of single-header C data structures with focus on cache friendliness and performance.
+
+------
+
 This project was mostly inspired by [Godot Engine](https://godotengine.org/)'s [`OAHashMap`](https://github.com/godotengine/godot/blob/b22f048700105dec26154cc90f10b0ef34b3f5ed/core/oa_hash_map.h) type.
 
 Unfortunately, that class is implemented in C++, also it depends on other engine-internal classes, so it can't be ported easily to other projects.
