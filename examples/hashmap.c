@@ -68,6 +68,29 @@ int main(int argc, char **argv)
 
 			printf("map[13] == %u\n", value);
 		}
+
+		{
+			// test removing
+			uint32_t key = 42;
+			uint32_t value = 21;
+
+			cf_hashmap_set(&map, key, &key, &value);
+
+			if (!cf_hashmap_lookup(&map, key, &key, &value)) {
+				printf("Whaaat, this is a bug. Please report it. Or better, fix it. =)\n");
+			}
+
+			size_t num_elems = map.num_elements;
+
+			cf_hashmap_remove(&map, key, &key);
+
+			if (cf_hashmap_lookup(&map, key, &key, &value)) {
+				printf("Whaaat, this is a bug. Please report it. Or better, fix it. =)\n");
+			} else {
+				printf("removing works! elems before: %zu elems after: %zu\n", num_elems, map.num_elements);
+			}
+
+		}
 	}
 
 	return 0;

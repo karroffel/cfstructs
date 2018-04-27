@@ -37,8 +37,6 @@ typedef struct {
 	size_t key_size;
 	size_t value_size;
 
-	size_t buffer_size;
-
 	bool (*key_cmp)(const void * restrict, const void * restrict);
 	void (*key_copy)(const void * restrict, void * restrict);
 	void (*value_copy)(const void * restrict, void * restrict);
@@ -63,6 +61,10 @@ bool cf_hashmap_lookup(const cf_hashmap *map,
                        const void * restrict key,
                        void * restrict value);
 
+void cf_hashmap_remove(cf_hashmap *map,
+                       uint32_t hash,
+                       const void * restrict key);
+
 
 #ifdef CF_HASHMAP_IMPLEMENTATION
 
@@ -85,8 +87,6 @@ cf_hashmap cf_hashmap_new(cf_hashmap_key_info key_info,
 
 	_map.value_size = value_info.size;
 	_map.value_copy = value_info.copy;
-
-	_map.buffer_size = buffer_size;
 
 	_map.buffer = buffer;
 
@@ -184,10 +184,50 @@ bool cf_hashmap_lookup(const cf_hashmap *map,
 		}
 	}
 
+	// oh. We searched through the whole table, that means every entry was
+	// filled at *some point*, which is still pretty scary. The user should
+	// switch to a new table with a bigger buffer
 	return false;
 
 }
 
+void cf_hashmap_remove(cf_hashmap *map,
+                       uint32_t hash,
+                       const void * restrict key)
+{
+	_CF_HASHMAP_PROLOGUE();
+	(void) values_ptr;
+
+	for (size_t i = 0; i < capacity; i++) {
+		size_t pos = (hash + i) % capacity;
+
+		size_t flag_pos = pos / 4;
+		size_t flag_pos_offset = pos % 4;
+
+		bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
+		bool was_deleted = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset + 1));
+
+		if (is_filled) {
+			if (hashes_ptr[pos] == hash && map->key_cmp(&keys_ptr[pos * map->key_size], key)) {
+				// ayyyy, this is the entry, which means we get to kick it out now >:D
+				flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset));
+				flags_ptr[flag_pos] |= (1 << (2 * flag_pos_offset + 1));
+
+				map->num_elements--;
+
+				return;
+			}
+			continue;
+		} else if (was_deleted) {
+			continue;
+		} else {
+			// The entry is not filled but it also wasn't deleted
+			// in the past, so we found a hole. That means our value
+			// isn't in the table at all. Nothing to remove :'(
+			return;
+		}
+	}
+}
 
 #undef _CF_HASHMAP_PROLOGUE
 
