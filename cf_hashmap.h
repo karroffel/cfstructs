@@ -89,25 +89,32 @@ typedef struct {
 	void (*key_copy)(const void * restrict, void * restrict);
 	void (*value_copy)(const void * restrict, void * restrict);
 
-	void *buffer;
+	void * restrict buffer;
 
 } cf_hashmap;
+
+/// An iterator for iterating over key-value pairs. Use cf_hashmap_iter_start() to acquire such
+/// an iterator. Use cf_hashmap_iter_next() to advance the iteration.
+typedef struct {
+	size_t offset;
+} cf_hashmap_iter;
 
 
 /// This function constructs a new hashmap value. The hashmap uses the information about the
 /// key and value type to figure out where to store information in the buffer.
 /// The buffer is a chunk of memory that will be used as the storage. It should probably be
 /// created by using the `CF_HASHMAP_DECENT_BUFFER_SIZE` macro.
+/// Don't modify the contents of the buffer after handing it to a hashmap.
 cf_hashmap cf_hashmap_new(cf_hashmap_key_info key_info,
                           cf_hashmap_value_info value_info,
                           size_t buffer_size,
-                          void *buffer);
+                          void * restrict buffer);
 
 /// Associate a key with a value. The hash is the hash value of the key. This hashmap doesn't
 /// perform any hashing itself, so the caller has to provide the hash.
 /// For collision resolution, the key itself has to be provided as well.
 /// The value pointer points to a memory location that contains the data to be inserted.
-void cf_hashmap_set(cf_hashmap *map,
+void cf_hashmap_set(cf_hashmap * restrict map,
                     uint32_t hash,
                     const void * restrict key,
                     const void * restrict value);
@@ -116,16 +123,28 @@ void cf_hashmap_set(cf_hashmap *map,
 /// has to be provided in case a collision occurs.
 /// If an entry is found, the value will be written to the out-parameter `value`.
 /// Returns true if an entry was found, false otherwise.
-bool cf_hashmap_lookup(const cf_hashmap *map,
+bool cf_hashmap_lookup(const cf_hashmap * restrict map,
                        uint32_t hash,
                        const void * restrict key,
                        void * restrict value);
 
 /// Remove an entry from the hashtable by proving the hash and the key value, in case a
 /// collision occurs.
-void cf_hashmap_remove(cf_hashmap *map,
+void cf_hashmap_remove(cf_hashmap * restrict map,
                        uint32_t hash,
                        const void * restrict key);
+
+/// Create an iterator for the hashmap. Use `cf_hashmap_iter_next` to advance the iteration.
+cf_hashmap_iter cf_hashmap_iter_start(const cf_hashmap * restrict map);
+
+/// Advance the iterator to the next elements found. Key and value will be written to the
+/// out parameters `key` and `value` in case a next iteration was possible.
+/// In that case the function will return true.
+/// The function will return false when the end was reached.
+bool cf_hashmap_iter_next(const cf_hashmap * restrict map,
+                          cf_hashmap_iter * restrict iter,
+                          void * restrict key,
+                          void * restrict value);
 
 
 #ifdef CF_HASHMAP_IMPLEMENTATION
@@ -140,7 +159,7 @@ void cf_hashmap_remove(cf_hashmap *map,
 cf_hashmap cf_hashmap_new(cf_hashmap_key_info key_info,
                           cf_hashmap_value_info value_info,
                           size_t buffer_size,
-                          void *buffer)
+                          void * restrict buffer)
 {
 	cf_hashmap _map;
 	_map.key_size = key_info.size;
@@ -175,7 +194,7 @@ cf_hashmap cf_hashmap_new(cf_hashmap_key_info key_info,
 }
 
 
-void cf_hashmap_set(cf_hashmap *map,
+void cf_hashmap_set(cf_hashmap * restrict map,
                     uint32_t hash,
                     const void * restrict key,
                     const void * restrict value)
@@ -213,7 +232,7 @@ void cf_hashmap_set(cf_hashmap *map,
 	}
 }
 
-bool cf_hashmap_lookup(const cf_hashmap *map,
+bool cf_hashmap_lookup(const cf_hashmap * restrict map,
                        uint32_t hash,
                        const void * restrict key,
                        void * restrict value)
@@ -253,7 +272,7 @@ bool cf_hashmap_lookup(const cf_hashmap *map,
 
 }
 
-void cf_hashmap_remove(cf_hashmap *map,
+void cf_hashmap_remove(cf_hashmap * restrict map,
                        uint32_t hash,
                        const void * restrict key)
 {
@@ -289,6 +308,54 @@ void cf_hashmap_remove(cf_hashmap *map,
 			return;
 		}
 	}
+}
+
+cf_hashmap_iter cf_hashmap_iter_start(const cf_hashmap * restrict map)
+{
+	cf_hashmap_iter iter = {};
+
+	iter.offset = 0;
+
+	return iter;
+}
+
+bool cf_hashmap_iter_next(const cf_hashmap * restrict map,
+                          cf_hashmap_iter * restrict iter,
+                          void * restrict key,
+                          void * restrict value)
+{
+
+	_CF_HASHMAP_PROLOGUE();
+	(void) values_ptr;
+
+	for (size_t i = iter->offset; i < capacity; i++) {
+		size_t pos = i;
+
+		size_t flag_pos = pos / 4;
+		size_t flag_pos_offset = pos % 4;
+
+		bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
+
+		if (is_filled) {
+			// heyyy, we found something, let's write the offset to the iterator and
+			// copy the key-value pair!
+
+			iter->offset = i + 1; // next time check the next entry
+
+			map->key_copy(&keys_ptr[pos * map->key_size], key);
+			map->value_copy(&values_ptr[pos * map->value_size], value);
+
+			return true;
+
+		} else {
+			continue;
+		}
+	}
+
+	// We're done. If we set the iterator to capacity then next time the loop
+	// won't even do one iteration.
+	iter->offset = capacity;
+	return false;
 }
 
 #undef _CF_HASHMAP_PROLOGUE

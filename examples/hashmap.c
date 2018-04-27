@@ -9,19 +9,41 @@
 #define CF_HASHMAP_IMPLEMENTATION
 #include "cf_hashmap.h"
 
-bool uint32_cmp(const void * restrict a, const void * restrict b)
+
+// uint32_t key and uint16_t value
+
+static bool uint32_cmp(const void * restrict a, const void * restrict b)
 {
 	return *(const uint32_t * restrict)a == *(const uint32_t * restrict)b;
 }
 
-void uint32_copy(const void * restrict from, void * restrict to)
+static void uint32_copy(const void * restrict from, void * restrict to)
 {
 	*(uint32_t * restrict)to = *(const uint32_t * restrict)from;
 }
 
-void uint16_copy(const void * restrict from, void * restrict to)
+static void uint16_copy(const void * restrict from, void * restrict to)
 {
 	*(uint16_t *)to = *(const uint16_t * restrict)from;
+}
+
+
+// const char * key
+
+static bool char_ptr_cmp(const void * restrict a, const void * restrict b)
+{
+	const char * restrict *_a = (const char * restrict *) a;
+	const char * restrict *_b = (const char * restrict *) b;
+
+	return *_a == *_b;
+}
+
+static void char_ptr_copy(const void * restrict from, void * restrict to)
+{
+	const char * restrict * _from = (const char * restrict *) from;
+	char * restrict *_to = (char * restrict *) to;
+
+	*_to = (void * restrict) *_from;
 }
 
 int main(int argc, char **argv)
@@ -66,7 +88,7 @@ int main(int argc, char **argv)
 
 			cf_hashmap_lookup(&map, key, &key, &value);
 
-			printf("map[13] == %u\n", value);
+			printf("map[13] == %hu\n", value);
 		}
 
 		{
@@ -90,6 +112,60 @@ int main(int argc, char **argv)
 				printf("removing works! elems before: %zu elems after: %zu\n", num_elems, map.num_elements);
 			}
 
+		}
+	}
+
+	{
+		uint8_t buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(const char *, uint16_t, 3)];
+
+		cf_hashmap map;
+
+		{
+			cf_hashmap_key_info key_info = {
+			        sizeof(const char *),
+			        &char_ptr_cmp,
+			        &char_ptr_copy,
+			};
+
+			cf_hashmap_value_info value_info = {
+			        sizeof(uint16_t),
+			        &uint16_copy,
+			};
+
+			map = cf_hashmap_new(key_info,
+			                     value_info,
+			                     sizeof(buffer),
+			                     buffer);
+		}
+
+#define CHAR_HASH(str) ((uint32_t) ((uintptr_t) str & 0xFFFFFFFF)) // don't judge me
+		{
+			// fill up hashtable
+			const char *key = "Alice";
+			uint16_t value = 23;
+
+			cf_hashmap_set(&map, CHAR_HASH(key), &key, &value);
+
+			key = "Bob";
+			value = 31;
+			cf_hashmap_set(&map, CHAR_HASH(key), &key, &value);
+
+			key = "Eve";
+			value = 1337;
+			cf_hashmap_set(&map, CHAR_HASH(key), &key, &value);
+		}
+
+		{
+			// iterate over all names and print them
+
+			const char *key;
+			uint16_t value;
+
+			cf_hashmap_iter iter = cf_hashmap_iter_start(&map);
+
+			while (cf_hashmap_iter_next(&map, &iter, &key, &value)) {
+				printf("map[\"%s\"] = %hu\n", key, value);
+			}
 		}
 	}
 
