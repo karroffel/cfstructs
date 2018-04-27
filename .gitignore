@@ -1,3 +1,6 @@
+# example binaries
+examples/hashmap
+
 # Prerequisites
 *.d
 
@@ -50,3 +53,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# QtCreator files
+*.config
+*.files
+*.includes
+*.creator
+*.creator.user
