@@ -1,6 +1,7 @@
 # example binaries
 examples/hashmap
 examples/hashset
+examples/memorypool
 
 # Prerequisites
 *.d

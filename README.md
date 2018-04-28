@@ -47,7 +47,21 @@ The regions have the same purpose as with `cf::hashmap`, but the "values" region
 
 A simple usage example can be found in the [`examples/hashset.cpp`](https://github.com/karroffel/cfstructs/blob/master/examples/hashset.cpp) file.
 
+### [`cf::memorypool`](https://github.com/karroffel/cfstructs/blob/master/cf_memorypool.hpp)
+
+A basic memory allocator that uses a user provided buffer to allocate fixed size elements.
+
+The allocator works by re-using unused elements to point to the next unused element.
+When a new element should be allocated, the allocator grabs the last unused element it knew about and sets the pointer to the next unused element to the one saved in the previously allocated element.
+
+Because unused elements are mis-used to store the index to the next free element, only POD types can be used.
+Furthermore, the space required for each element in the buffer is the size of **the union of element type and index type**.
+
+For example, when using `uint8_t` as element type and `uint32_t` as index type, each element will need the same space as the `uint32_t`.
+The index type can be customized but defaults to `uint32_t`.
+
+A simple usage example can be found in the [`examples/memorypool.cpp`](https://github.com/karroffel/cfstructs/blob/master/examples/memorypool.cpp) file.
+
 ## Planned
 
- - `cf_poolalloc`: a pool allocator that manages allocations on a user-provided fixed-size buffer.
  - I don't know, maybe something else that I need in a project. 
