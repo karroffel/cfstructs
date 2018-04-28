@@ -7,8 +7,8 @@
 /// memory pool / pool allocator. This memory pool can be used to manage
 /// fixed-size allocations in a user-given buffer.
 ///
-#ifndef CF_MEMOYPOOL_HPP
-#define CF_MEMOYPOOL_HPP
+#ifndef CF_MEMORYPOOL_HPP
+#define CF_MEMORYPOOL_HPP
 
 #include <stddef.h>
 #include <stdint.h>

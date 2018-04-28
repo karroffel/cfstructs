@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "cf_memoypool.hpp"
+#include "cf_memorypool.hpp"
 
 struct Velocity {
 	float x;
