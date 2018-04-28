@@ -15,6 +15,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+namespace cf {
+
 #define _CF_HASHMAP_DECENT_BUFFER_SIZE(key_size, value_size, capacity) \
 	( \
 	        (sizeof(uint32_t) + key_size + value_size) * capacity \
@@ -37,7 +39,7 @@
 /// The keys region is used when collisions occur. In such a case the keys will be compared.
 /// The values region contains the values. This hashmap really just touches it to store values.
 template <typename TKey, typename TValue>
-struct cf_hashmap {
+struct hashmap {
 
 	/// The number of elements in this hash map.
 	size_t num_elements;
@@ -57,9 +59,9 @@ struct cf_hashmap {
 	/// The buffer is a chunk of memory that will be used as the storage. It should probably be
 	/// created by using the `CF_HASHMAP_DECENT_BUFFER_SIZE` macro.
 	/// Don't modify the contents of the buffer after handing it to a hashmap.
-	static cf_hashmap create(size_t buffer_size, void *buffer)
+	static hashmap create(size_t buffer_size, void *buffer)
 	{
-		cf_hashmap<TKey, TValue> map = {};
+		hashmap<TKey, TValue> map = {};
 
 		map.buffer = buffer;
 		map.num_elements = 0;
@@ -215,7 +217,7 @@ struct cf_hashmap {
 	/// Create an iterator for the hashmap. Use `iter_next()` to advance the iteration.
 	iter iter_start() const
 	{
-		cf_hashmap<TKey, TValue>::iter iter = {};
+		hashmap<TKey, TValue>::iter iter = {};
 		iter.offset = 0;
 		return iter;
 	}
@@ -271,7 +273,7 @@ struct cf_hashmap {
 
 	/// Creates a new hashmap using a different buffer. All the entries of the
 	/// current map will be inserted into the new map.
-	cf_hashmap<TKey, TValue> copy(size_t buffer_size, void *buffer) const
+	hashmap<TKey, TValue> copy(size_t buffer_size, void *buffer) const
 	{
 		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
 		uint8_t *flags_ptr = (uint8_t *) this->buffer;
@@ -280,7 +282,7 @@ struct cf_hashmap {
 		TValue *values_ptr = (TValue *) ((uint8_t *) keys_ptr + sizeof(TKey) * capacity);
 
 		// create the new hashmap
-		cf_hashmap<TKey, TValue> new_hashmap;
+		hashmap<TKey, TValue> new_hashmap;
 		new_hashmap.num_elements = 0;
 		new_hashmap.buffer = buffer;
 		new_hashmap.capacity = (size_t)((float)(buffer_size - 1) / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t) + 1/4.0));
@@ -307,5 +309,7 @@ struct cf_hashmap {
 
 	}
 };
+
+}
 
 #endif

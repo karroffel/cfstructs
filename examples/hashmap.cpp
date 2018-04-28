@@ -10,11 +10,13 @@
 
 int main(int argc, char **argv)
 {
+	using cf::hashmap;
+
 	printf("=== cf_hashmap tests ===\n");
 
 	{
 		uint8_t buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(uint32_t, uint16_t, 1024)];
-		auto map = cf_hashmap<uint32_t, uint16_t>::create(sizeof(buffer), buffer);
+		auto map = hashmap<uint32_t, uint16_t>::create(sizeof(buffer), buffer);
 		assert(map.num_elements == 0);
 
 		map.set(13, 13, 42);
@@ -70,7 +72,7 @@ int main(int argc, char **argv)
 		printf("=== const char * test ===\n");
 
 		uint8_t old_buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(const char *, uint16_t, 3)];
-		auto map = cf_hashmap<const char *, uint16_t>::create(sizeof(old_buffer), old_buffer);
+		auto map = hashmap<const char *, uint16_t>::create(sizeof(old_buffer), old_buffer);
 
 		map.set(CHAR_HASH("Alice"), "Alice", 23);
 		map.set(CHAR_HASH("Bob"), "Bob", 31);
