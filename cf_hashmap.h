@@ -146,6 +146,16 @@ bool cf_hashmap_iter_next(const cf_hashmap * restrict map,
                           void * restrict key,
                           void * restrict value);
 
+/// Calculates the load factor of the map. When the load factor is greater than 0.7
+/// then cf_hashmap_copy should be used to relocate the hashmap for better performance.
+float cf_hashmap_load_factor(const cf_hashmap * restrict map);
+
+/// Creates a new hashmap with a new, bigger buffer but the same contents.
+/// After this call, the old buffer is no longer used.
+cf_hashmap cf_hashmap_copy(cf_hashmap * restrict map,
+                           size_t buffer_size,
+                           void * restrict buffer);
+
 
 #ifdef CF_HASHMAP_IMPLEMENTATION
 
@@ -184,10 +194,6 @@ cf_hashmap cf_hashmap_new(cf_hashmap_key_info key_info,
 
 	for (size_t i = 0; i < (capacity / 4 + 1); i++) {
 		flags_ptr[i] = 0;
-	}
-
-	for (size_t i = 0; i < capacity; i++) {
-		hashes_ptr[i] = 0;
 	}
 
 	return _map;
@@ -356,6 +362,44 @@ bool cf_hashmap_iter_next(const cf_hashmap * restrict map,
 	// won't even do one iteration.
 	iter->offset = capacity;
 	return false;
+}
+
+float cf_hashmap_load_factor(const cf_hashmap * restrict map)
+{
+	return map->num_elements / (float) map->capacity;
+}
+
+cf_hashmap cf_hashmap_copy(cf_hashmap * restrict map,
+                           size_t buffer_size,
+                           void * restrict buffer)
+{
+	_CF_HASHMAP_PROLOGUE();
+
+	cf_hashmap new_hashmap = *map;
+	new_hashmap.num_elements = 0;
+	new_hashmap.buffer = buffer;
+	new_hashmap.capacity = (size_t)((float)(buffer_size - 1) / (map->key_size + map->value_size + sizeof(uint32_t) + 1/4.0));
+
+	uint8_t * restrict new_flags_ptr = buffer;
+
+	// clear the flags, just to be sure
+	for (size_t i = 0; i < (new_hashmap.capacity / 4 + 1); i++) {
+		new_flags_ptr[i] = 0;
+	}
+
+	// now re-insert the entries
+	for (size_t pos = 0; pos < capacity; pos++) {
+		size_t flag_pos = pos / 4;
+		size_t flag_pos_offset = pos % 4;
+
+		bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
+
+		if (is_filled) {
+			cf_hashmap_set(&new_hashmap, hashes_ptr[pos], &keys_ptr[pos * map->key_size], &values_ptr[pos * map->value_size]);
+		}
+	}
+
+	return new_hashmap;
 }
 
 #undef _CF_HASHMAP_PROLOGUE

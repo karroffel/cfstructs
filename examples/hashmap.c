@@ -167,6 +167,28 @@ int main(int argc, char **argv)
 				printf("map[\"%s\"] = %hu\n", key, value);
 			}
 		}
+
+		{
+			printf("resize test\n");
+
+			printf("old loadfactor: %f\n", cf_hashmap_load_factor(&map));
+
+			uint8_t tmp_buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(const char *, uint16_t, 256)];
+
+			cf_hashmap new_map = cf_hashmap_copy(&map, sizeof(tmp_buffer), tmp_buffer);
+			printf("new loadfactor: %f\n", cf_hashmap_load_factor(&new_map));
+
+
+			const char *key;
+			uint16_t value;
+
+			cf_hashmap_iter iter = cf_hashmap_iter_start(&new_map);
+
+			while (cf_hashmap_iter_next(&new_map, &iter, &key, &value)) {
+				printf("new_map[\"%s\"] = %hu\n", key, value);
+			}
+
+		}
 	}
 
 	return 0;
