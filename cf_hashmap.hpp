@@ -13,7 +13,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
 
 namespace cf {
 
@@ -24,8 +23,8 @@ namespace cf {
 	)
 
 /// Calculates the size in bytes for hashmap with estimated `num_elements` entries.
-/// The calculated size gives enough space to not go over a 70% load factor.
-/// Wikipedia says that 70% are a nice spot before the local probing takes too much time.
+/// The calculated size gives enough space to not go over a 75% load factor.
+/// Wikipedia says that 80% are a nice spot before the local probing takes too much time.
 /// https://en.wikipedia.org/wiki/Open_addressing
 #define CF_HASHMAP_DECENT_BUFFER_SIZE(key_type, value_type, num_elements) \
 	_CF_HASHMAP_DECENT_BUFFER_SIZE(sizeof(key_type), sizeof(value_type), (int) (1.5 * num_elements))
@@ -44,7 +43,7 @@ struct hashmap {
 	/// The number of elements in this hash map.
 	size_t num_elements;
 
-	/// The capacity of how many elements *could* be hold in this map.
+	/// The capacity of how many elements *could* be held in this map.
 	size_t capacity;
 
 	void *buffer;
@@ -264,7 +263,7 @@ struct hashmap {
 		return false;
 	}
 
-	/// Calculates the load factor of the map. When the load factor is greater than 0.7
+	/// Calculates the load factor of the map. When the load factor is greater than 0.8
 	/// then `copy()` should be used to relocate the hashmap for better performance.
 	inline float load_factor() const
 	{
