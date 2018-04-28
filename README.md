@@ -14,13 +14,11 @@ This repositoy aims to implement similar containers, focussed on performance and
 
 ## Container types
 
-So far, only `cf_hashmap` is implemented.
+### [`cf::hashmap`](https://github.com/karroffel/cfstructs/blob/master/cf_hashmap.hpp)
 
-### [`cf_hashmap`](https://github.com/karroffel/cfstructs/blob/master/cf_hashmap.hpp)
+The `cf::hashmap` is a HashMap implementation that uses open addressing with linear probing. Its main focus is on lookup and iteration speed.
 
-The `cf_hashmap` is a HashMap implementation that uses open addressing with linear probing. Its main focus is on lookup and iteration speed.
-
-The user has to hand the `cf_hashmap` a buffer which will hold all the data managed by the hashmap. This buffer is a single chunk of memory, the hashmap however will internally divide this buffer into 4 different "regions":
+The user has to hand the `cf::hashmap` a buffer which will hold all the data managed by the hashmap. This buffer is a single chunk of memory, the hashmap however will internally divide this buffer into 4 different "regions":
  - flags
  - hashes
  - keys
@@ -36,9 +34,20 @@ The "values" regions stores the values. Apart from storing and letting the calle
 
 A simple usage example can be found in the [`examples/hashmap.cpp`](https://github.com/karroffel/cfstructs/blob/master/examples/hashmap.cpp) file.
 
+### [`cf::hashset`](https://github.com/karroffel/cfstructs/blob/master/cf_hashset.hpp)
+
+The `cf::hashset` is a HashSet implementation that operates in a similar way to `cf::hashmap` in that it uses open addressing with linear probing.
+
+As with the `cf::hashmap`, this container hold all the data in a user-provided buffer. That buffer gets internally divided into 3 "regions":
+ - flags
+ - hashes
+ - values
+
+The regions have the same purpose as with `cf::hashmap`, but the "values" region corresponds to the "keys" region in the HashMap.
+
+A simple usage example can be found in the [`examples/hashset.cpp`](https://github.com/karroffel/cfstructs/blob/master/examples/hashset.cpp) file.
 
 ## Planned
 
- - `cf_hashset`: a hashset that operates similarly to `cf_hashmap`, but doesn't provide key-value mapping, only existance checks.
  - `cf_poolalloc`: a pool allocator that manages allocations on a user-provided fixed-size buffer.
  - I don't know, maybe something else that I need in a project. 
