@@ -35,7 +35,7 @@ static bool char_ptr_cmp(const void * restrict a, const void * restrict b)
 	const char * restrict *_a = (const char * restrict *) a;
 	const char * restrict *_b = (const char * restrict *) b;
 
-	return *_a == *_b;
+	return 0 == strcmp(*_a, *_b);
 }
 
 static void char_ptr_copy(const void * restrict from, void * restrict to)

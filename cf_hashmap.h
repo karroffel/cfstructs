@@ -332,7 +332,6 @@ bool cf_hashmap_iter_next(const cf_hashmap * restrict map,
 {
 
 	_CF_HASHMAP_PROLOGUE();
-	(void) values_ptr;
 
 	for (size_t i = iter->offset; i < capacity; i++) {
 		size_t pos = i;

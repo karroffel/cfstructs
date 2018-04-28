@@ -1,5 +1,6 @@
 # example binaries
 examples/hashmap
+examples/hashmap++
 
 # Prerequisites
 *.d
