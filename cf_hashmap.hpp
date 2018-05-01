@@ -40,13 +40,13 @@ namespace cf {
 template <typename TKey, typename TValue>
 struct hashmap {
 
-	/// The number of elements in this hash map.
-	size_t num_elements;
+private:
+	size_t m_num_elements;
 
-	/// The capacity of how many elements *could* be held in this map.
-	size_t capacity;
+	size_t m_capacity;
 
-	void *buffer;
+	void *m_buffer;
+public:
 
 	/// An iterator for iterating over key-value pairs. Use `iter_start()` to acquire
 	/// such an iterator. Use `iter_next()` to advance the iteration.
@@ -62,12 +62,12 @@ struct hashmap {
 	{
 		hashmap<TKey, TValue> map = {};
 
-		map.buffer = buffer;
-		map.num_elements = 0;
-		map.capacity = (size_t)((float)(buffer_size - 1) / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t) + 1/4.0));
+		map.m_buffer = buffer;
+		map.m_num_elements = 0;
+		map.m_capacity = (size_t)((float)(buffer_size - 1) / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t) + 1/4.0));
 
-		size_t capacity = map.capacity;
-		uint8_t *flags_ptr = (uint8_t *) map.buffer;
+		size_t capacity = map.m_capacity;
+		uint8_t *flags_ptr = (uint8_t *) map.m_buffer;
 
 		// okay, now that this is all set up, let's initialize the buffer
 		for (size_t i = 0; i < (capacity / 4 + 1); i++) {
@@ -82,8 +82,8 @@ struct hashmap {
 	/// For collision resolution, the key itself has to be provided as well.
 	void set(uint32_t hash, const TKey &key, const TValue &value)
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		TKey *keys_ptr = (TKey *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 		TValue *values_ptr = (TValue *) ((uint8_t *) keys_ptr + sizeof(TKey) * capacity);
@@ -114,7 +114,7 @@ struct hashmap {
 			// also unset the "deleted" flag... you never know!
 			flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset + 1));
 
-			num_elements++;
+			m_num_elements++;
 			return;
 		}
 	}
@@ -125,8 +125,8 @@ struct hashmap {
 	/// Returns true if an entry was found, false otherwise.
 	bool lookup(uint32_t hash, const TKey &key, TValue &value) const
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		TKey *keys_ptr = (TKey *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 		TValue *values_ptr = (TValue *) ((uint8_t *) keys_ptr + sizeof(TKey) * capacity);
@@ -178,8 +178,8 @@ struct hashmap {
 	/// collision occurs.
 	void remove(uint32_t hash, const TKey &key)
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		TKey *keys_ptr = (TKey *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 
@@ -198,7 +198,7 @@ struct hashmap {
 					flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset));
 					flags_ptr[flag_pos] |= (1 << (2 * flag_pos_offset + 1));
 
-					num_elements--;
+					m_num_elements--;
 					return;
 				}
 				continue;
@@ -227,8 +227,8 @@ struct hashmap {
 	/// The function will return false when the end was reached.
 	bool iter_next(iter &iter, TKey &key, TValue &value) const
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		TKey *keys_ptr = (TKey *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 		TValue *values_ptr = (TValue *) ((uint8_t *) keys_ptr + sizeof(TKey) * capacity);
@@ -267,28 +267,28 @@ struct hashmap {
 	/// then `copy()` should be used to relocate the hashmap for better performance.
 	inline float load_factor() const
 	{
-		return num_elements / (float) capacity;
+		return m_num_elements / (float) m_capacity;
 	}
 
 	/// Creates a new hashmap using a different buffer. All the entries of the
 	/// current map will be inserted into the new map.
 	hashmap<TKey, TValue> copy(size_t buffer_size, void *buffer) const
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		TKey *keys_ptr = (TKey *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 		TValue *values_ptr = (TValue *) ((uint8_t *) keys_ptr + sizeof(TKey) * capacity);
 
 		// create the new hashmap
 		hashmap<TKey, TValue> new_hashmap;
-		new_hashmap.num_elements = 0;
-		new_hashmap.buffer = buffer;
-		new_hashmap.capacity = (size_t)((float)(buffer_size - 1) / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t) + 1/4.0));
+		new_hashmap.m_num_elements = 0;
+		new_hashmap.m_buffer = buffer;
+		new_hashmap.m_capacity = (size_t)((float)(buffer_size - 1) / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t) + 1/4.0));
 
 		// clear the flags of the new hashmap
 		uint8_t *new_flags_ptr = (uint8_t *) buffer;
-		for (size_t i = 0; i < (new_hashmap.capacity / 4 + 1); i++) {
+		for (size_t i = 0; i < (new_hashmap.m_capacity / 4 + 1); i++) {
 			new_flags_ptr[i] = 0;
 		}
 
@@ -306,6 +306,18 @@ struct hashmap {
 
 		return new_hashmap;
 
+	}
+
+	/// The number of elements in this hash map.
+	size_t num_elements() const
+	{
+		return m_num_elements;
+	}
+
+	/// The capacity of how many elements *could* be held in this map.
+	size_t capacity() const
+	{
+		return m_capacity;
 	}
 };
 

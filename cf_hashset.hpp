@@ -37,14 +37,14 @@ namespace cf {
 template <typename T>
 struct hashset {
 
-	/// The number of elements in this hashset.
-	size_t num_elements;
+private:
+	size_t m_num_elements;
 
-	/// The capacity of how many elements *could* be held in this set.
-	size_t capacity;
+	size_t m_capacity;
 
-	void *buffer;
+	void *m_buffer;
 
+public:
 	/// An iterator for iterating over the values. Use `iter_start()` to acquire
 	/// such an iterator. Use `iter_next()` to advance the iteration.
 	struct iter {
@@ -59,12 +59,12 @@ struct hashset {
 	{
 		hashset<T> set = {};
 
-		set.buffer = buffer;
-		set.num_elements = 0;
-		set.capacity = (size_t)((float)(buffer_size - 1) / (sizeof(T) + sizeof(uint32_t) + 1/4.0));
+		set.m_buffer = buffer;
+		set.m_num_elements = 0;
+		set.m_capacity = (size_t)((float)(buffer_size - 1) / (sizeof(T) + sizeof(uint32_t) + 1/4.0));
 
-		size_t capacity = set.capacity;
-		uint8_t *flags_ptr = (uint8_t *) set.buffer;
+		size_t capacity = set.m_capacity;
+		uint8_t *flags_ptr = (uint8_t *) set.m_buffer;
 
 		// Set the flags os that every element is considered empty
 		for (size_t i = 0; i < (capacity / 4 + 1); i++) {
@@ -79,8 +79,8 @@ struct hashset {
 	/// The value is used for checking for existance as well as collision resolution.
 	void insert(uint32_t hash, const T &value)
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 
@@ -108,7 +108,7 @@ struct hashset {
 			// also unset the "deleted" flag... you never know!
 			flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset + 1));
 
-			num_elements++;
+			m_num_elements++;
 			return;
 		}
 	}
@@ -117,8 +117,8 @@ struct hashset {
 	/// Returns true if an entry with `value` was found, false otherwise.
 	bool has(uint32_t hash, const T &value) const
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 
@@ -156,8 +156,8 @@ struct hashset {
 	/// Remove a value from the hashset.
 	void remove(uint32_t hash, const T &value)
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 
@@ -176,7 +176,7 @@ struct hashset {
 					flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset));
 					flags_ptr[flag_pos] |= (1 << (2 * flag_pos_offset + 1));
 
-					num_elements--;
+					m_num_elements--;
 					return;
 				}
 				continue;
@@ -205,8 +205,8 @@ struct hashset {
 	/// If an element was found, true will be returned, otherwise false.
 	bool iter_next(iter &iter, T &value) const
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 
@@ -244,27 +244,27 @@ struct hashset {
 	/// then `copy()` should be used to relocate the hashet for better performance.
 	inline float load_factor() const
 	{
-		return num_elements / (float) capacity;
+		return m_num_elements / (float) m_capacity;
 	}
 
 	/// Creates a new hashset using a different buffer. All values of the current map
 	/// will be inserted into the new map.
 	hashset<T> copy(size_t buffer_size, void *buffer) const
 	{
-		const size_t capacity = this->capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->buffer;
+		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
+		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
 		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
 		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
 
 		// create the new hashset
 		hashset<T> new_hashset;
-		new_hashset.num_elements = 0;
-		new_hashset.buffer = buffer;
-		new_hashset.capacity = (size_t)((float)(buffer_size - 1) / (sizeof(T) + sizeof(uint32_t) + 1/4.0));
+		new_hashset.m_num_elements = 0;
+		new_hashset.m_buffer = buffer;
+		new_hashset.m_capacity = (size_t)((float)(buffer_size - 1) / (sizeof(T) + sizeof(uint32_t) + 1/4.0));
 
 		// clear the flags of the new hashset
 		uint8_t *new_flags_ptr = (uint8_t *) buffer;
-		for (size_t i = 0; i < (new_hashset.capacity / 4 + 1); i++) {
+		for (size_t i = 0; i < (new_hashset.m_capacity / 4 + 1); i++) {
 			new_flags_ptr[i] = 0;
 		}
 
@@ -281,6 +281,18 @@ struct hashset {
 		}
 
 		return new_hashset;
+	}
+
+	/// The number of elements in this hashset.
+	size_t num_elements() const
+	{
+		return m_num_elements;
+	}
+
+	/// The capacity of how many elements *could* be held in this set.
+	size_t capacity() const
+	{
+		return m_capacity;
 	}
 
 };

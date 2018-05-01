@@ -37,32 +37,33 @@ namespace cf {
 /// be smaller than the value type.
 template <typename T, typename IndexType = uint32_t>
 struct memorypool {
+private:
 
-	/// number of used elements in the memory pool
-	size_t num_elements;
+	size_t m_num_elements;
 
-	/// maxium number of elements the memory pool can hold.
-	size_t capacity;
+	size_t m_capacity;
 
 	IndexType next_free;
 
 	typedef union { T value; IndexType next; } element_t;
 
-	element_t *buffer;
+	element_t *m_buffer;
+
+public:
 
 	/// This function constructs a new memory pool. The `buffer` is a chunk of memory
 	/// of size `buffer_size` which the memory pool will "draw" from.
 	static memorypool<T, IndexType> create(size_t buffer_size, void *buffer)
 	{
 		memorypool<T, IndexType> pool;
-		pool.buffer = (element_t *) buffer;
+		pool.m_buffer = (element_t *) buffer;
 
-		pool.num_elements = 0;
-		pool.capacity = buffer_size / sizeof(element_t);
+		pool.m_num_elements = 0;
+		pool.m_capacity = buffer_size / sizeof(element_t);
 
 		// now set all the next pointers to the next element
-		for (IndexType i = 0; i < pool.capacity; i++) {
-			pool.buffer[i].next = (i + 1) % pool.capacity;
+		for (IndexType i = 0; i < pool.m_capacity; i++) {
+			pool.m_buffer[i].next = (i + 1) % pool.m_capacity;
 		}
 
 		pool.next_free = 0;
@@ -74,36 +75,48 @@ struct memorypool {
 	/// If not enough space is available, `nullptr` will be returned.
 	T *allocate()
 	{
-		if (num_elements == capacity) {
+		if (m_num_elements == m_capacity) {
 			return nullptr;
 		}
 
-		IndexType new_next_free = buffer[next_free].next;
+		IndexType new_next_free = m_buffer[next_free].next;
 		IndexType old_next_free = next_free;
-		buffer[next_free].next = buffer[new_next_free].next;
+		m_buffer[next_free].next = m_buffer[new_next_free].next;
 
-		num_elements++;
+		m_num_elements++;
 		next_free = new_next_free;
 
-		return &buffer[old_next_free].value;
+		return &m_buffer[old_next_free].value;
 	}
 
 	/// Free a previously used element.
 	void free(T *element)
 	{
-		IndexType index = ((element_t *) element - buffer);
+		IndexType index = ((element_t *) element - m_buffer);
 
 		IndexType old_next_free = next_free;
 		next_free = index;
-		num_elements--;
+		m_num_elements--;
 
-		buffer[index].next = old_next_free;
+		m_buffer[index].next = old_next_free;
 	}
 
 	/// The load factor of the memory pool (from 0.0 to 1.0).
 	float load_factor() const
 	{
-		return (float)num_elements / capacity;
+		return (float)m_num_elements / m_capacity;
+	}
+
+	/// number of used elements in the memory pool
+	size_t num_elements() const
+	{
+		return m_num_elements;
+	}
+
+	/// maxium number of elements the memory pool can hold.
+	size_t capacity() const
+	{
+		return m_capacity;
 	}
 
 };

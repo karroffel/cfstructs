@@ -17,13 +17,13 @@ int main(int argc, char **argv)
 	{
 		uint8_t buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(uint32_t, uint16_t, 1024)];
 		auto map = hashmap<uint32_t, uint16_t>::create(sizeof(buffer), buffer);
-		assert(map.num_elements == 0);
+		assert(map.num_elements() == 0);
 
 		map.set(13, 13, 42);
-		assert(map.num_elements == 1);
+		assert(map.num_elements() == 1);
 
 		map.set(13, 13, 37);
-		assert(map.num_elements == 1);
+		assert(map.num_elements() == 1);
 
 		{
 			uint16_t value;
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 		{
 			uint16_t value;
 			map.remove(13, 42);
-			assert(map.num_elements == 1);
+			assert(map.num_elements() == 1);
 			assert(!map.lookup(13, 42, value));
 		}
 

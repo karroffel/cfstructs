@@ -18,22 +18,22 @@ int main(int argc, char **argv)
 
 		auto set = hashset<uint32_t>::create(sizeof(buffer), buffer);
 
-		assert(set.num_elements == 0);
+		assert(set.num_elements() == 0);
 
 		set.insert(13, 13);
 
 		assert(set.has(13, 13));
-		assert(set.num_elements == 1);
+		assert(set.num_elements() == 1);
 
 		set.insert(13, 13); // insert the same thing again
-		assert(set.num_elements == 1);
+		assert(set.num_elements() == 1);
 
 		set.insert(1337, 1337);
-		assert(set.num_elements == 2);
+		assert(set.num_elements() == 2);
 
 		set.remove(13, 13);
 		assert(!set.has(13, 13));
-		assert(set.num_elements == 1);
+		assert(set.num_elements() == 1);
 
 		set.insert(13, 13);
 		set.insert(13, 21); // cause a hash collision
