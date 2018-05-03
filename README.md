@@ -16,7 +16,7 @@ This repositoy aims to implement similar containers, focussed on performance and
 
 ### [`cf::hashmap`](https://github.com/karroffel/cfstructs/blob/master/cf_hashmap.hpp)
 
-The `cf::hashmap` is a HashMap implementation that uses open addressing with linear probing. Its main focus is on lookup and robinhood hashing.
+The `cf::hashmap` is a HashMap implementation that uses open addressing with robinhood hashing. Its main focus is on lookup and iteration speed.
 
 The user has to hand the `cf::hashmap` a buffer which will hold all the data managed by the hashmap. This buffer is a single chunk of memory, the hashmap however will internally divide this buffer into 3 different "regions":
  - hashes
@@ -33,10 +33,9 @@ A simple usage example can be found in the [`examples/hashmap.cpp`](https://gith
 
 ### [`cf::hashset`](https://github.com/karroffel/cfstructs/blob/master/cf_hashset.hpp)
 
-The `cf::hashset` is a HashSet implementation that operates in a similar way to `cf::hashmap` in that it uses open addressing with linear probing.
+The `cf::hashset` is a HashSet implementation that operates in a similar way to `cf::hashmap` in that it uses open addressing with robinhood hashing.
 
-As with the `cf::hashmap`, this container hold all the data in a user-provided buffer. That buffer gets internally divided into 3 "regions":
- - flags
+As with the `cf::hashmap`, this container hold all the data in a user-provided buffer. That buffer gets internally divided into 2 "regions":
  - hashes
  - values
 

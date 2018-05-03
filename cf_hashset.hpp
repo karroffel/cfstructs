@@ -4,10 +4,7 @@
 
 ///
 /// This is a single-header library that provides a chache-friend hash set that
-/// uses open addressing with local probing. This hashset doesn't perform any hashing
-/// itself, so the the user has to provide the hash values. The keys have to be POD
-/// types. Comparision of values to resolving hash collisions uses operator==, so
-/// this might need to be implemented if the value type is not a primitive type.
+/// uses open addressing with robinhood hashing.
 ///
 #ifndef CF_HASHSET_HPP
 #define CF_HASHSET_HPP
@@ -17,21 +14,13 @@
 
 namespace cf {
 
-#define _CF_HASHSET_DECENT_BUFFER_SIZE(key_size, capacity) \
-	((sizeof(uint32_t) + key_size) * capacity + (capacity / 4) + 1)
+#define CF_HASHSET_GET_BUFFER_SIZE(key_type, num_elements) \
+	((sizeof(uint32_t) + sizeof(key_type)) * num_elements)
 
-/// Calculates the size in bytes for a buffer for a hashset with estimated `num_elements`
-/// entries. The calculated size gives enough space to not go over 75% load factor.
-/// Wikipedia says that 80% are a nice spot before the local probing takes too much time.
-/// https://en.wikipedia.org/wiki/Open_addressing
-#define CF_HASHSET_DECENT_BUFFER_SIZE(key_type, num_elements) \
-	_CF_HASHSET_DECENT_BUFFER_SIZE(sizeof(key_type), (int)(1.5 * num_elements))
-
-/// A hashset type that uses open addressing with local probing.
-/// The hashset uses 3 different regions of memory: flags, hashes and values.
+/// A hashset type that uses open addressing with robinhood hashing.
+/// The hashset uses 2 different regions of memory: hashes and values.
 /// Those regions are located next to each other in a buffer in a Struct-of-Arrays
 /// kind of fashion.
-/// The flags store information about wheter the entry is filled or was filled in the past.
 /// The hashes are the hashes provided by the user. This hashset doesn't do any hashing itself.
 /// The values region contains the values. They are used to resolve collisions and check for existance.
 template <typename T>
@@ -42,8 +31,110 @@ private:
 
 	size_t m_capacity;
 
-	void *m_buffer;
+	uint8_t *m_buffer;
 
+	static const uint32_t EMPTY_HASH = 0;
+	static const uint32_t DELETED_HASH_BIT = 1 << 31;
+
+	template <typename A>
+	static void _swap(A &a, A &b) {
+		A tmp = a;
+		a = b;
+		b = tmp;
+	}
+
+	// We want only hashes != 0 since we use that for detecting empty
+	// entries.
+	// The leftmost bit indicates that the entry was deleted in the past.
+	// We can't use just a "deleted value" because otherwise we lose information
+	// about the previous probe distance
+	static uint32_t _hash(uint32_t hash) {
+		if (hash == EMPTY_HASH) {
+			hash = EMPTY_HASH + 1;
+		} else if (hash & DELETED_HASH_BIT) {
+			hash &= ~DELETED_HASH_BIT;
+		}
+
+		return hash;
+	}
+
+	uint32_t _get_probe_distance(uint32_t pos, uint32_t hash) const {
+		hash = hash & ~DELETED_HASH_BIT;
+
+		uint32_t ideal_pos = hash % m_capacity;
+
+		return pos - ideal_pos;
+	}
+
+	bool _lookup_pos(uint32_t hash, const T &value, uint32_t &pos) const {
+		pos = hash % m_capacity;
+		uint32_t distance = 0;
+
+		uint32_t *hashes = (uint32_t *) m_buffer;
+		T *values = (T *) (m_buffer + m_capacity * sizeof(uint32_t));
+
+		while (42) {
+			if (hashes[pos] == EMPTY_HASH) {
+				return false;
+			}
+
+			if (distance > _get_probe_distance(pos, hashes[pos])) {
+				return false;
+			}
+
+			if (hashes[pos] == hash && values[pos] == value) {
+				return true;
+			}
+
+			pos = (pos + 1) % m_capacity;
+			distance++;
+		}
+	}
+
+	void _insert(uint32_t hash, const T &value)
+	{
+		uint32_t distance = 0;
+		uint32_t pos = hash % m_capacity;
+
+		T _value = value;
+
+		uint32_t *hashes = (uint32_t *) m_buffer;
+		T *values = (T *) (m_buffer + sizeof(uint32_t) * m_capacity);
+
+		while (42) {
+
+			// An empty slot, put our stuff in there, then we're done!
+			if (hashes[pos] == EMPTY_HASH) {
+				hashes[pos] = hash;
+				values[pos] = _value;
+				m_num_elements++;
+				return;
+			}
+
+			uint32_t exiting_distance = _get_probe_distance(pos, hashes[pos]);
+			if (exiting_distance < distance) {
+				// we found a slot that should be further to the right
+
+				if (hashes[pos] & DELETED_HASH_BIT) {
+					// buuuut it was deleted so we can use it
+
+					hashes[pos] = hash;
+					values[pos] = _value;
+					m_num_elements++;
+					return;
+				}
+
+				// swap out the entry and now operate on the other value
+				// that should be further to the right
+				_swap(hash, hashes[pos]);
+				_swap(_value, values[pos]);
+				distance = exiting_distance;
+			}
+
+			pos = (pos + 1) % m_capacity;
+			distance++;
+		}
+	}
 public:
 	/// An iterator for iterating over the values. Use `iter_start()` to acquire
 	/// such an iterator. Use `iter_next()` to advance the iteration.
@@ -53,22 +144,22 @@ public:
 
 	/// This functions constructs a new hashet value.
 	/// The buffer is a chunk of memory that will be used as the storage. That
-	/// buffer should probably be created/sized by using the `CF_HASHSET_DECENT_BUFFER_SIZE` macro.
+	/// buffer should probably be created/sized by using the `CF_HASHSET_GET_BUFFER_SIZE` macro.
 	/// Don't modify the contents of the buffer after handing it to a hashset.
 	static hashset create(size_t buffer_size, void *buffer)
 	{
 		hashset<T> set = {};
 
-		set.m_buffer = buffer;
+		set.m_buffer = (uint8_t *) buffer;
 		set.m_num_elements = 0;
-		set.m_capacity = (size_t)((float)(buffer_size - 1) / (sizeof(T) + sizeof(uint32_t) + 1/4.0));
+		set.m_capacity = (size_t)(buffer_size / (sizeof(T) + sizeof(uint32_t)));
 
 		size_t capacity = set.m_capacity;
-		uint8_t *flags_ptr = (uint8_t *) set.m_buffer;
+		uint32_t *hashes = (uint32_t *) set.m_buffer;
 
 		// Set the flags os that every element is considered empty
-		for (size_t i = 0; i < (capacity / 4 + 1); i++) {
-			flags_ptr[i] = 0;
+		for (size_t i = 0; i < capacity; i++) {
+			hashes[i] = EMPTY_HASH;
 		}
 
 		return set;
@@ -79,117 +170,40 @@ public:
 	/// The value is used for checking for existance as well as collision resolution.
 	void insert(uint32_t hash, const T &value)
 	{
-		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
-		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
-		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
+		hash = _hash(hash);
+		uint32_t pos = 0;
+		bool exists = _lookup_pos(hash, value, pos);
 
-		for (size_t i = 0; i < capacity; i++) {
-			size_t pos = (hash + i) % capacity;
-
-			size_t flag_pos = pos / 4;
-			size_t flag_pos_offset = pos % 4;
-
-			bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
-
-			if (is_filled) {
-				if (hashes_ptr[pos] == hash && values_ptr[pos] == value) {
-					// entry already exists! Just don't do anything then.
-					return;
-				}
-				continue;
-			}
-
-			hashes_ptr[pos] = hash;
-			values_ptr[pos] = value;
-
-			// set the filled flag
-			flags_ptr[flag_pos] |= (1 << (2 * flag_pos_offset));
-			// also unset the "deleted" flag... you never know!
-			flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset + 1));
-
-			m_num_elements++;
+		if (exists) {
 			return;
 		}
+
+		_insert(hash, value);
 	}
 
 	/// Checks if `value` is an element of the hashset.
 	/// Returns true if an entry with `value` was found, false otherwise.
 	bool has(uint32_t hash, const T &value) const
 	{
-		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
-		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
-		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
-
-		for (size_t i = 0; i < capacity; i++) {
-			size_t pos = (hash + i) % capacity;
-
-			size_t flag_pos = pos / 4;
-			size_t flag_pos_offset = pos % 4;
-
-			bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
-			bool was_deleted = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset + 1));
-
-			if (is_filled) {
-				if (hashes_ptr[pos] == hash && values_ptr[pos] == value) {
-					// found the entry! Return true
-					return true;
-				}
-				continue;
-			} else if (was_deleted) {
-				continue;
-			} else {
-				// The entry is not filled but it also wasn't deleted
-				// in the past, so we found a hole. That means our value
-				// isn't in the table at all.
-				return false;
-			}
-		}
-
-		// oh. We searched through the whole table, that means every entry was
-		// filled at *some point*, which is still pretty scary. The user should
-		// switch to a new table with a bigger buffer
-		return false;
+		hash = _hash(hash);
+		uint32_t _pos = 0;
+		return _lookup_pos(hash, value, _pos);
 	}
 
 	/// Remove a value from the hashset.
 	void remove(uint32_t hash, const T &value)
 	{
-		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
-		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
-		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
+		hash = _hash(hash);
+		uint32_t pos = 0;
+		bool exists = _lookup_pos(hash, value, pos);
 
-		for (size_t i = 0; i < capacity; i++) {
-			size_t pos = (hash + i) % capacity;
-
-			size_t flag_pos = pos / 4;
-			size_t flag_pos_offset = pos % 4;
-
-			bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
-			bool was_deleted = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset + 1));
-
-			if (is_filled) {
-				if (hashes_ptr[pos] == hash && values_ptr[pos] == value) {
-					// ayyyy, this is the entry, which means we get to kick it out now >:D
-					flags_ptr[flag_pos] &= ~(1 << (2 * flag_pos_offset));
-					flags_ptr[flag_pos] |= (1 << (2 * flag_pos_offset + 1));
-
-					m_num_elements--;
-					return;
-				}
-				continue;
-			} else if (was_deleted) {
-				continue;
-			} else {
-				// The entry is not filled but it also wasn't deleted
-				// in the past, so we found a hole. That means our value
-				// isn't in the table at all. Nothing to remove :'(
-				return;
-			}
+		if (!exists) {
+			return;
 		}
 
+		uint32_t *hashes = (uint32_t *) m_buffer;
+		hashes[pos] |= DELETED_HASH_BIT;
+		m_num_elements--;
 	}
 
 	/// Creates an iterator for the hashset. Use `iter_next()` to advance the iteration.
@@ -205,42 +219,25 @@ public:
 	/// If an element was found, true will be returned, otherwise false.
 	bool iter_next(iter &iter, T &value) const
 	{
-		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
-		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
-		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
+		uint32_t *hashes = (uint32_t *) m_buffer;
+		T *values = (T *) (m_buffer + sizeof(uint32_t) * m_capacity);
 
-		for (size_t i = iter.offset; i < capacity; i++) {
-			size_t pos = i;
-
-			size_t flag_pos = pos / 4;
-			size_t flag_pos_offset = pos % 4;
-
-			bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
-
-			if (is_filled) {
-				// heyyy, we found something, let's write the offset to the iterator and
-				// copy the value!
-
-				iter.offset = i + 1; // next time check the next entry
-
-				value = values_ptr[pos];
-
-				return true;
-
-			} else {
+		for (size_t i = iter.offset; i < m_capacity; i++) {
+			if (hashes[i] == EMPTY_HASH) {
 				continue;
 			}
+			if (hashes[i] & DELETED_HASH_BIT) {
+				continue;
+			}
+
+			value = values[i];
+			iter.offset = i + 1;
+			return true;
 		}
-
-		// We're done. If we set the iterator to capacity then next time the loop
-		// won't even do one iteration.
-		iter.offset = capacity;
 		return false;
-
 	}
 
-	/// Calculates the load factor of the hashset. If the load factor is greater than 0.8
+	/// Calculates the load factor of the hashset. If the load factor is greater than 0.95
 	/// then `copy()` should be used to relocate the hashet for better performance.
 	inline float load_factor() const
 	{
@@ -251,33 +248,20 @@ public:
 	/// will be inserted into the new map.
 	hashset<T> copy(size_t buffer_size, void *buffer) const
 	{
-		const size_t capacity = this->m_capacity; // To assure to the compiler that it's constant
-		uint8_t *flags_ptr = (uint8_t *) this->m_buffer;
-		uint32_t *hashes_ptr = (uint32_t *) (flags_ptr + (capacity / 4 + 1));
-		T *values_ptr = (T *) ((uint8_t *) hashes_ptr + sizeof(uint32_t) * capacity);
+		hashset<T> new_hashset = hashset::create(buffer_size, buffer);
 
-		// create the new hashset
-		hashset<T> new_hashset;
-		new_hashset.m_num_elements = 0;
-		new_hashset.m_buffer = buffer;
-		new_hashset.m_capacity = (size_t)((float)(buffer_size - 1) / (sizeof(T) + sizeof(uint32_t) + 1/4.0));
+		uint32_t *hashes = (uint32_t *) m_buffer;
+		T *values = (T *) (m_buffer + sizeof(uint32_t) * m_capacity);
 
-		// clear the flags of the new hashset
-		uint8_t *new_flags_ptr = (uint8_t *) buffer;
-		for (size_t i = 0; i < (new_hashset.m_capacity / 4 + 1); i++) {
-			new_flags_ptr[i] = 0;
-		}
-
-		// now re-insert the values
-		for (size_t pos = 0; pos < capacity; pos++) {
-			size_t flag_pos = pos / 4;
-			size_t flag_pos_offset = pos % 4;
-
-			bool is_filled = flags_ptr[flag_pos] & (1 << (2 * flag_pos_offset));
-
-			if (is_filled) {
-				new_hashset.insert(hashes_ptr[pos], values_ptr[pos]);
+		for (size_t i = 0; i < m_capacity; i++) {
+			if (hashes[i] == EMPTY_HASH) {
+				continue;
 			}
+			if (hashes[i] & DELETED_HASH_BIT) {
+				continue;
+			}
+
+			new_hashset.insert(hashes[i], values[i]);
 		}
 
 		return new_hashset;

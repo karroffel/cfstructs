@@ -107,6 +107,7 @@ private:
 
 		while (42) {
 
+			// An empty slot, put our stuff in there, then we're done!
 			if (hashes[pos] == EMPTY_HASH) {
 				hashes[pos] = hash;
 				keys[pos] = _key;
@@ -117,9 +118,10 @@ private:
 
 			uint32_t exiting_distance = _get_probe_distance(pos, hashes[pos]);
 			if (exiting_distance < distance) {
+				// we found a slot that should be further to the right
 
 				if (hashes[pos] & DELETED_HASH_BIT) {
-					// found a spot that we can use
+					// buuuut it was deleted so we can use it
 
 					hashes[pos] = hash;
 					keys[pos] = _key;
@@ -128,6 +130,8 @@ private:
 					return;
 				}
 
+				// swap out the entry and now operate on the other value
+				// that should be further to the right
 				_swap(hash, hashes[pos]);
 				_swap(_key, keys[pos]);
 				_swap(_value, values[pos]);
@@ -158,7 +162,7 @@ public:
 
 		map.m_buffer = (uint8_t *) buffer;
 		map.m_num_elements = 0;
-		map.m_capacity = (size_t)((float)buffer_size / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t)));
+		map.m_capacity = (size_t)(buffer_size / (sizeof(TKey) + sizeof(TValue) + sizeof(uint32_t)));
 
 		size_t capacity = map.m_capacity;
 

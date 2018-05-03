@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 	printf("=== cf_hashset tests ===\n");
 
 	{
-		uint8_t buffer[CF_HASHSET_DECENT_BUFFER_SIZE(uint32_t, 3)];
+		uint8_t buffer[CF_HASHSET_GET_BUFFER_SIZE(uint32_t, 3)];
 
 		auto set = hashset<uint32_t>::create(sizeof(buffer), buffer);
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
 			printf("old loadfactor: %f\n", set.load_factor());
 
-			uint8_t new_buffer[CF_HASHSET_DECENT_BUFFER_SIZE(uint32_t, 256)];
+			uint8_t new_buffer[CF_HASHSET_GET_BUFFER_SIZE(uint32_t, 256)];
 			auto new_set = set.copy(sizeof(new_buffer), new_buffer);
 
 			printf("new loadfactor: %f\n", new_set.load_factor());
