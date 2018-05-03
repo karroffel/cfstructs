@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 	{
 		// This actually performs pointer comparison. Just so you know.
 		// If you want to have value comparisons then a POD string type
-		// (probably just a wrapper for `const char *` should be used.
+		// (probably just a wrapper for `const char *` should be used).
 
 		printf("=== const char * test ===\n");
 

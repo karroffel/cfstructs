@@ -31,6 +31,11 @@ int main(int argc, char **argv)
 		set.insert(1337, 1337);
 		assert(set.num_elements() == 2);
 
+		set.insert(11, 11);
+		set.insert(12, 12); // the set isn't big enough to deal with this,
+		// so it will be discarded.
+		set.remove(11, 11);
+
 		set.remove(13, 13);
 		assert(!set.has(13, 13));
 		assert(set.num_elements() == 1);

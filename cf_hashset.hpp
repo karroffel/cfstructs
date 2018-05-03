@@ -48,7 +48,8 @@ private:
 	// The leftmost bit indicates that the entry was deleted in the past.
 	// We can't use just a "deleted value" because otherwise we lose information
 	// about the previous probe distance
-	static uint32_t _hash(uint32_t hash) {
+	static uint32_t _hash(uint32_t hash)
+	{
 		if (hash == EMPTY_HASH) {
 			hash = EMPTY_HASH + 1;
 		} else if (hash & DELETED_HASH_BIT) {
@@ -58,7 +59,8 @@ private:
 		return hash;
 	}
 
-	uint32_t _get_probe_distance(uint32_t pos, uint32_t hash) const {
+	uint32_t _get_probe_distance(uint32_t pos, uint32_t hash) const
+	{
 		hash = hash & ~DELETED_HASH_BIT;
 
 		uint32_t ideal_pos = hash % m_capacity;
@@ -66,14 +68,15 @@ private:
 		return pos - ideal_pos;
 	}
 
-	bool _lookup_pos(uint32_t hash, const T &value, uint32_t &pos) const {
+	bool _lookup_pos(uint32_t hash, const T &value, uint32_t &pos) const
+	{
 		pos = hash % m_capacity;
 		uint32_t distance = 0;
 
 		uint32_t *hashes = (uint32_t *) m_buffer;
 		T *values = (T *) (m_buffer + m_capacity * sizeof(uint32_t));
 
-		while (42) {
+		while (distance < m_capacity) {
 			if (hashes[pos] == EMPTY_HASH) {
 				return false;
 			}
@@ -89,10 +92,17 @@ private:
 			pos = (pos + 1) % m_capacity;
 			distance++;
 		}
+
+		return false;
 	}
 
 	void _insert(uint32_t hash, const T &value)
 	{
+		if (m_num_elements == m_capacity) {
+			// if this is the case then this will just keep trying to
+			// swap stuff around, never terminating.
+			return;
+		}
 		uint32_t distance = 0;
 		uint32_t pos = hash % m_capacity;
 
@@ -101,7 +111,7 @@ private:
 		uint32_t *hashes = (uint32_t *) m_buffer;
 		T *values = (T *) (m_buffer + sizeof(uint32_t) * m_capacity);
 
-		while (42) {
+		while (distance < m_capacity) {
 
 			// An empty slot, put our stuff in there, then we're done!
 			if (hashes[pos] == EMPTY_HASH) {
