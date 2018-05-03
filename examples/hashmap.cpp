@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 	printf("=== cf_hashmap tests ===\n");
 
 	{
-		uint8_t buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(uint32_t, uint16_t, 1024)];
+		uint8_t buffer[CF_HASHMAP_GET_BUFFER_SIZE(uint32_t, uint16_t, 1024)];
 		auto map = hashmap<uint32_t, uint16_t>::create(sizeof(buffer), buffer);
 		assert(map.num_elements() == 0);
 
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
 		printf("=== const char * test ===\n");
 
-		uint8_t old_buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(const char *, uint16_t, 3)];
+		uint8_t old_buffer[CF_HASHMAP_GET_BUFFER_SIZE(const char *, uint16_t, 3)];
 		auto map = hashmap<const char *, uint16_t>::create(sizeof(old_buffer), old_buffer);
 
 		map.set(CHAR_HASH("Alice"), "Alice", 23);
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 
 			printf("old loadfactor: %f\n", map.load_factor());
 
-			uint8_t new_buffer[CF_HASHMAP_DECENT_BUFFER_SIZE(const char *, uint16_t, 256)];
+			uint8_t new_buffer[CF_HASHMAP_GET_BUFFER_SIZE(const char *, uint16_t, 256)];
 			auto new_map = map.copy(sizeof(new_buffer), new_buffer);
 
 			printf("new loadfactor: %f\n", new_map.load_factor());

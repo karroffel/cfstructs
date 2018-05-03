@@ -16,15 +16,12 @@ This repositoy aims to implement similar containers, focussed on performance and
 
 ### [`cf::hashmap`](https://github.com/karroffel/cfstructs/blob/master/cf_hashmap.hpp)
 
-The `cf::hashmap` is a HashMap implementation that uses open addressing with linear probing. Its main focus is on lookup and iteration speed.
+The `cf::hashmap` is a HashMap implementation that uses open addressing with linear probing. Its main focus is on lookup and robinhood hashing.
 
-The user has to hand the `cf::hashmap` a buffer which will hold all the data managed by the hashmap. This buffer is a single chunk of memory, the hashmap however will internally divide this buffer into 4 different "regions":
- - flags
+The user has to hand the `cf::hashmap` a buffer which will hold all the data managed by the hashmap. This buffer is a single chunk of memory, the hashmap however will internally divide this buffer into 3 different "regions":
  - hashes
  - keys
  - values
-
-The "flags" region stores two bits of information for each key-value pair: `is_filled` and `was_deleted`. The flags for 4 entries can be saved in one octet.
 
 The "hashes" region stores the hash of each entry. Each hash is represented by a `uint32_t`.
 
